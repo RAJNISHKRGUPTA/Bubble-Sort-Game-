@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubble Shooter: Bubble Pop</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* Global styles for the body */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); /* Gradient background */
+            margin: 0;
+            font-family: 'Inter', sans-serif; /* Modern font */
+            overflow: hidden; /* Prevent scrollbars */
+            color: #333;
+        }
+
+        /* Container for the entire game */
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 20px; /* Rounded corners for the container */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Soft shadow */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden; /* Ensure nothing overflows the rounded corners */
+            max-width: 90vw; /* Responsive width */
+            max-height: 90vh; /* Responsive height */
+            box-sizing: border-box; /* Include padding in width/height */
+            opacity: 0; /* Initially hidden, will fade in */
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .game-container.active {
+            opacity: 1;
+        }
+
+        /* Canvas styling */
+        canvas {
+            background-color: #e0f2f7; /* Light blue background for the game area */
+            border: 2px solid #66a6ff; /* Blue border */
+            border-radius: 15px; /* Slightly rounded corners for the canvas */
+            display: block; /* Remove extra space below canvas */
+            touch-action: none; /* Prevent default touch actions like scrolling/zooming */
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1); /* Inner shadow for depth */
+        }
+
+        /* Game info panel (score, level) */
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px 0;
+            background-color: #f0f8ff; /* Lighter background */
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-info div {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #007bff; /* Blue text */
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Message box for game over/win */
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid #4CAF50;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            gap: 15px;
+            animation: fadeInScale 0.3s ease-out forwards;
+        }
+
+        .message-box h2 {
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .message-box p {
+            color: #555;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .message-box button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .message-box button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .message-box button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Keyframe animation for message box */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        /* Start Screen Styles */
+        #startScreen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            text-align: center;
+            gap: 25px;
+            opacity: 1; /* Initially visible */
+            transition: opacity 0.5s ease-in-out;
+            max-width: 90vw;
+            max-height: 90vh;
+            box-sizing: border-box;
+        }
+
+        #startScreen.hidden {
+            opacity: 0;
+            pointer-events: none; /* Disable interactions when hidden */
+        }
+
+        #startScreen h1 {
+            color: #007bff;
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #startScreen p {
+            color: #555;
+            font-size: 1.2em;
+            line-height: 1.5;
+        }
+
+        #startScreen button {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #startScreen button:hover {
+            background-color: #0056b3;
+            transform: translateY(-3px);
+        }
+
+        #startScreen button:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Sound Toggle Button */
+        .sound-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 101;
+        }
+
+        .sound-toggle:hover {
+            background-color: rgba(255, 255, 255, 1);
+        }
+
+        .sound-toggle .icon {
+            font-size: 1.5em;
+            color: #333;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 15px;
+                width: 95vw;
+                height: auto;
+            }
+
+            .game-info {
+                flex-direction: column;
+                gap: 5px;
+                margin-bottom: 10px;
+            }
+
+            .game-info div {
+                font-size: 1em;
+            }
+
+            .message-box {
+                padding: 20px;
+                width: 80%;
+            }
+
+            .message-box h2 {
+                font-size: 1.5em;
+            }
+
+            .message-box p {
+                font-size: 0.9em;
+            }
+
+            .message-box button {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+
+            #startScreen {
+                padding: 25px;
+            }
+
+            #startScreen h1 {
+                font-size: 2.2em;
+            }
+
+            #startScreen p {
+                font-size: 1em;
+            }
+
+            #startScreen button {
+                padding: 12px 25px;
+                font-size: 1.2em;
+            }
+
+            .sound-toggle {
+                top: 10px;
+                right: 10px;
+                width: 35px;
+                height: 35px;
+            }
+
+            .sound-toggle .icon {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <h1>Bubble Shooter: Bubble Pop!</h1>
+        <p>An exciting casual game adventure awaits! Shoot and pop bubbles, clear levels, and rescue cute pets!</p>
+        <button id="playButton">Play Game</button>
+    </div>
+
+    <div class="game-container" id="gameContainer">
+        <div class="game-info">
+            <div id="score">Score: 0</div>
+            <div id="level">Level: 1</div>
+            <div id="bubbles-left">Bubbles Left: 0</div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Message Box for Game Over/Win -->
+        <div id="messageBox" class="message-box">
+            <h2 id="messageTitle"></h2>
+            <p id="messageText"></p>
+            <button id="restartButton">Play Again</button>
+        </div>
+
+        <!-- Sound Toggle Button -->
+        <div id="soundToggle" class="sound-toggle">
+            <span class="icon" id="soundIcon">🔊</span>
+        </div>
+    </div>
+
+    <script>
+        // Ensure the script runs after the DOM is fully loaded
+        window.onload = function () {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const scoreDisplay = document.getElementById('score');
+            const levelDisplay = document.getElementById('level');
+            const bubblesLeftDisplay = document.getElementById('bubbles-left');
+            const messageBox = document.getElementById('messageBox');
+            const messageTitle = document.getElementById('messageTitle');
+            const messageText = document.getElementById('messageText');
+            const restartButton = document.getElementById('restartButton');
+            const startScreen = document.getElementById('startScreen');
+            const playButton = document.getElementById('playButton');
+            const gameContainer = document.getElementById('gameContainer');
+            const soundToggle = document.getElementById('soundToggle');
+            const soundIcon = document.getElementById('soundIcon');
+
+            // Game Constants
+            const BUBBLE_RADIUS = 20; // Radius of each bubble
+            const BUBBLE_DIAMETER = BUBBLE_RADIUS * 2;
+            const BUBBLE_SPACING_X = BUBBLE_DIAMETER + 2; // Horizontal spacing
+            const BUBBLE_SPACING_Y = Math.sqrt(3) * BUBBLE_RADIUS + 2; // Vertical spacing for hexagonal grid
+            const COLORS = ['#FF6347', '#FFD700', '#6A5ACD', '#3CB371', '#1E90FF']; // Tomato, Gold, SlateBlue, MediumSeaGreen, DodgerBlue
+            const MAX_ROWS = 12; // Maximum rows before game over
+
+            // Animation Constants
+            const POP_ANIMATION_DURATION = 200; // milliseconds
+            const DROP_ANIMATION_DURATION = 500; // milliseconds
+
+            // Level Data - Defines properties for each of the 30 levels
+            const LEVEL_DATA = [
+                // Level 1: Easy start
+                { initialRows: 3, colorsUsed: 3, powerUpChance: 0.05 },
+                // Level 2: Still easy, same config
+                { initialRows: 3, colorsUsed: 3, powerUpChance: 0.05 },
+                // Level 3: More rows
+                { initialRows: 4, colorsUsed: 3, powerUpChance: 0.07 },
+                // Level 4: More colors
+                { initialRows: 4, colorsUsed: 4, powerUpChance: 0.07 },
+                // Level 5: More rows, slightly higher power-up chance
+                { initialRows: 5, colorsUsed: 4, powerUpChance: 0.10 },
+                // Level 6: Same as 5
+                { initialRows: 5, colorsUsed: 4, powerUpChance: 0.10 },
+                // Level 7: More rows, still 4 colors
+                { initialRows: 6, colorsUsed: 4, powerUpChance: 0.12 },
+                // Level 8: All colors introduced
+                { initialRows: 6, colorsUsed: 5, powerUpChance: 0.12 },
+                // Level 9: More rows, all colors
+                { initialRows: 7, colorsUsed: 5, powerUpChance: 0.15 },
+                // Level 10: Same as 9
+                { initialRows: 7, colorsUsed: 5, powerUpChance: 0.15 },
+                // Level 11: More rows, higher power-up chance
+                { initialRows: 8, colorsUsed: 5, powerUpChance: 0.18 },
+                // Level 12: Same as 11
+                { initialRows: 8, colorsUsed: 5, powerUpChance: 0.18 },
+                // Level 13: Even more rows
+                { initialRows: 9, colorsUsed: 5, powerUpChance: 0.20 },
+                // Level 14: Same as 13
+                { initialRows: 9, colorsUsed: 5, powerUpChance: 0.20 },
+                // Level 15: Approaching max rows
+                { initialRows: 10, colorsUsed: 5, powerUpChance: 0.22 },
+                // Level 16: Same as 15
+                { initialRows: 10, colorsUsed: 5, powerUpChance: 0.22 },
+                // Level 17: Almost max rows
+                { initialRows: 11, colorsUsed: 5, powerUpChance: 0.25 },
+                // Level 18: Same as 17
+                { initialRows: 11, colorsUsed: 5, powerUpChance: 0.25 },
+                // Level 19: Max rows, higher power-up chance
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.28 },
+                // Level 20: Same as 19
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.28 },
+                // Levels 21-30: Max rows, highest power-up chance for continued challenge
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 21
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 22
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 23
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 24
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 25
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 26
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 27
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 28
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }, // Level 29
+                { initialRows: 12, colorsUsed: 5, powerUpChance: 0.30 }  // Level 30
+            ];
+            const MAX_LEVELS = LEVEL_DATA.length;
+
+            // Game State Variables
+            let bubbles = []; // 2D array representing the bubble grid
+            let shooter = { x: 0, y: 0, angle: Math.PI / 2 }; // Initialized to 0,0
+            let currentBubble = null; // Will be properly initialized by createNextBubble
+            let nextBubble = null;    // Will be properly initialized by createNextBubble
+            let score = 0;
+            let level = 1;
+            let bubblesRemaining = 0;
+            let gameOver = false;
+            let animationFrameId = null; // To store the requestAnimationFrame ID
+            let isDragging = false; // For touch/mouse dragging to aim
+            let isGameStarted = false; // Flag to control game flow
+            let soundEnabled = true;
+
+            // Tone.js Sound Setup
+            let popSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.1,
+                    sustain: 0.05,
+                    release: 0.1
+                }
+            }).toDestination();
+
+            let backgroundMusic = new Tone.Player({
+                // Updated URL to a more reliable source for royalty-free music
+                url: "https://cdn.pixabay.com/download/audio/2023/10/24/audio_349377728_st_192k.mp3?filename=lofi-study-112191.mp3",
+                loop: true,
+                volume: -15 // Lower volume for background
+            }).toDestination();
+
+            /**
+             * Plays a bubble pop sound.
+             */
+            function playPopSound() {
+                if (soundEnabled) {
+                    popSynth.triggerAttackRelease("C4", "8n"); // Play a C4 note for 8th note duration
+                }
+            }
+
+            /**
+             * Starts or stops the background music.
+             */
+            async function toggleBackgroundMusic() {
+                if (soundEnabled) {
+                    try {
+                        await Tone.start(); // Ensure Tone.js context is running (requires user gesture)
+                        // The Tone.Player constructor handles loading. No need for explicit .load() here.
+                        if (backgroundMusic.state !== 'started') {
+                            backgroundMusic.start();
+                        }
+                    } catch (e) {
+                        console.error("Error starting Tone.js or background music:", e);
+                    }
+                } else {
+                    if (backgroundMusic.state === 'started') {
+                        backgroundMusic.stop();
+                    }
+                }
+            }
+
+            // --- Utility Functions ---
+
+            /**
+             * Generates a random color from the predefined COLORS array, considering allowed colors for the level.
+             * @param {number} colorsAllowed - The number of colors allowed for the current level.
+             * @returns {string} A hex color string.
+             */
+            function getRandomColor(colorsAllowed) {
+                const availableColors = COLORS.slice(0, colorsAllowed);
+                return availableColors[Math.floor(Math.random() * availableColors.length)];
+            }
+
+            /**
+             * Calculates the position of a bubble in the grid based on its row and column.
+             * Adjusts for the hexagonal offset.
+             * @param {number} row - The row index.
+             * @param {number} col - The column index.
+             * @returns {{x: number, y: number}} The x, y coordinates of the bubble's center.
+             */
+            function getBubblePosition(row, col) {
+                // Ensure row and col are valid numbers before calculation
+                if (typeof row !== 'number' || typeof col !== 'number' || isNaN(row) || isNaN(col)) {
+                    // Return a default safe position, or throw an error if this indicates a deeper problem
+                    // For now, return coordinates that won't cause non-finite issues in gradient creation
+                    return { x: 0, y: 0 };
+                }
+                const xOffset = (row % 2 === 1) ? BUBBLE_RADIUS : 0; // Offset for odd rows
+                const x = col * BUBBLE_SPACING_X + BUBBLE_RADIUS + xOffset;
+                const y = row * BUBBLE_SPACING_Y + BUBBLE_RADIUS;
+                return { x, y };
+            }
+
+            /**
+             * Converts canvas coordinates to grid row and column.
+             * @param {number} x - X coordinate on canvas.
+             * @param {number} y - Y coordinate on canvas.
+             * @returns {{row: number, col: number}} The approximate row and column.
+             */
+            function getGridCoordinates(x, y) {
+                let row = Math.round((y - BUBBLE_RADIUS) / BUBBLE_SPACING_Y);
+                row = Math.max(0, row); // Ensure row is not negative
+
+                const xOffset = (row % 2 === 1) ? BUBBLE_RADIUS : 0;
+                let col = Math.round((x - BUBBLE_RADIUS - xOffset) / BUBBLE_SPACING_X);
+                col = Math.max(0, col); // Ensure col is not negative
+
+                // Adjust column for edge cases where rounding might be off
+                const maxCols = Math.floor((canvas.width - xOffset) / BUBBLE_SPACING_X);
+                col = Math.min(col, maxCols - 1);
+
+                return { row, col };
+            }
+
+            /**
+             * Calculates the distance between two points.
+             * @param {number} x1 - X coordinate of point 1.
+             * @param {number} y1 - Y coordinate of point 1.
+             * @param {number} x2 - X coordinate of point 2.
+             * @param {number} y2 - Y coordinate of point 2.
+             * @returns {number} The distance.
+             */
+            function distance(x1, y1, x2, y2) {
+                return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            }
+
+            /**
+             * Shows a custom message box with a title and text.
+             * @param {string} title - The title of the message.
+             * @param {string} text - The main text content.
+             */
+            function showMessageBox(title, text) {
+                messageTitle.textContent = title;
+                messageText.textContent = text;
+                messageBox.style.display = 'flex';
+                cancelAnimationFrame(animationFrameId); // Stop game loop
+                if (backgroundMusic.state === 'started') {
+                    backgroundMusic.stop(); // Stop music when message box is shown
+                }
+            }
+
+            /**
+             * Hides the custom message box.
+             */
+            function hideMessageBox() {
+                messageBox.style.display = 'none';
+                if (isGameStarted && soundEnabled) { // Only restart music if game is active and sound is enabled
+                    toggleBackgroundMusic();
+                }
+            }
+
+            // --- Game Initialization ---
+
+            /**
+             * Initializes the game board with bubbles based on current level data.
+             * Ensures no immediate match-3s are created.
+             */
+            function generateBubbles() {
+                bubbles = [];
+                bubblesRemaining = 0;
+                const currentLevelData = LEVEL_DATA[level - 1];
+                const initialRows = currentLevelData.initialRows;
+                const colorsAllowed = currentLevelData.colorsUsed;
+
+                const numCols = Math.floor(canvas.width / BUBBLE_DIAMETER); // Approximate columns
+
+                for (let r = 0; r < initialRows; r++) {
+                    bubbles[r] = [];
+                    const xOffset = (r % 2 === 1) ? BUBBLE_RADIUS : 0;
+                    const actualNumCols = Math.floor((canvas.width - xOffset) / BUBBLE_SPACING_X);
+
+                    for (let c = 0; c < actualNumCols; c++) {
+                        let color;
+                        do {
+                            color = getRandomColor(colorsAllowed);
+                        } while (
+                            // Prevent immediate match-3 horizontally
+                            (c >= 2 && bubbles[r][c - 1] && bubbles[r][c - 2] &&
+                            bubbles[r][c - 1].color === color && bubbles[r][c - 2].color === color) ||
+                            // Prevent immediate match-3 vertically (checking previous row)
+                            (r >= 2 && bubbles[r - 1] && bubbles[r - 1][c] && bubbles[r - 2] && bubbles[r - 2][c] &&
+                            bubbles[r - 1][c].color === color && bubbles[r - 2][c].color === color)
+                        );
+                        bubbles[r][c] = {
+                            color: color,
+                            r: r,
+                            c: c,
+                            status: 'active', // 'active', 'popping', 'dropping'
+                            animationStartTime: 0,
+                            currentRadius: BUBBLE_RADIUS,
+                            currentAlpha: 1,
+                            initialY: getBubblePosition(r, c).y,
+                            targetY: getBubblePosition(r, c).y // For dropping animation
+                        };
+                        bubblesRemaining++;
+                    }
+                }
+            }
+
+            /**
+             * Creates a new bubble for the shooter, considering current level's power-up chance.
+             */
+            function createNextBubble() {
+                const currentLevelData = LEVEL_DATA[level - 1];
+                const colorsAllowed = currentLevelData.colorsUsed;
+                const powerUpChance = currentLevelData.powerUpChance;
+
+                currentBubble = {
+                    x: shooter.x, // Set x based on shooter's current position
+                    y: shooter.y, // Set y based on shooter's current position
+                    radius: BUBBLE_RADIUS,
+                    color: getRandomColor(colorsAllowed),
+                    dx: 0, // Delta X for movement
+                    dy: 0, // Delta Y for movement
+                    isMoving: false,
+                    isPowerUp: false, // Could be a power-up bubble
+                    powerUpType: null // e.g., 'thunderbolt', 'rainbow'
+                };
+
+                // Randomly assign a power-up based on level's chance
+                if (Math.random() < powerUpChance) {
+                    currentBubble.isPowerUp = true;
+                    const powerUps = ['thunderbolt', 'rainbow', 'bumpPop', 'magicBrush', 'lifeBubble'];
+                    currentBubble.powerUpType = powerUps[Math.floor(Math.random() * powerUps.length)];
+                    currentBubble.color = '#FFA500'; // Orange for power-up bubbles
+                }
+
+                nextBubble = {
+                    x: shooter.x + BUBBLE_RADIUS * 2.5, // Position for preview
+                    y: shooter.y,
+                    radius: BUBBLE_RADIUS * 0.7, // Smaller for preview
+                    color: getRandomColor(colorsAllowed),
+                    isPowerUp: false,
+                    powerUpType: null
+                };
+                if (Math.random() < powerUpChance) {
+                    nextBubble.isPowerUp = true;
+                    const powerUps = ['thunderbolt', 'rainbow', 'bumpPop', 'magicBrush', 'lifeBubble'];
+                    nextBubble.powerUpType = powerUps[Math.floor(Math.random() * powerUps.length)];
+                    nextBubble.color = '#FFA500'; // Orange for power-up bubbles
+                }
+            }
+
+            /**
+             * Resizes the canvas to fit the window and updates game elements accordingly.
+             */
+            function resizeCanvas() {
+                const container = document.querySelector('.game-container');
+                // Set canvas dimensions based on container's available space
+                canvas.width = container.clientWidth - 40; // Subtract padding
+                canvas.height = container.clientHeight - document.querySelector('.game-info').offsetHeight - 60; // Subtract info bar and some margin
+
+                // Ensure minimum size
+                canvas.width = Math.max(canvas.width, 300);
+                canvas.height = Math.max(canvas.height, 400);
+
+                shooter.x = canvas.width / 2;
+                shooter.y = canvas.height - BUBBLE_RADIUS;
+
+                // Only draw if the game elements (currentBubble, nextBubble) are initialized.
+                // This prevents drawing with non-finite values before initGame is called.
+                if (currentBubble && nextBubble) {
+                    draw();
+                }
+            }
+
+            /**
+             * Initializes the game state and starts the game loop.
+             */
+            function initGame() {
+                hideMessageBox();
+                score = 0;
+                level = 1;
+                gameOver = false;
+                generateBubbles();
+                createNextBubble(); // This will properly set currentBubble and nextBubble's x,y
+                resizeCanvas(); // This will now call draw() because currentBubble/nextBubble are valid
+                updateGameInfo();
+
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId); // Cancel any previous animation frame
+                }
+                gameLoop();
+            }
+
+            /**
+             * Starts the game from the home screen.
+             */
+            function startGame() {
+                isGameStarted = true;
+                startScreen.classList.add('hidden'); // Hide start screen with animation
+                gameContainer.classList.add('active'); // Show game container with animation
+
+                // Give a short delay for the animation to complete before initializing
+                setTimeout(async () => { // Made async to await Tone.js operations
+                    startScreen.style.display = 'none'; // Fully hide after transition
+                    gameContainer.style.display = 'flex'; // Ensure flex display for game container
+                    initGame();
+                    await toggleBackgroundMusic(); // Await background music to load and start
+                }, 500); // Match CSS transition duration
+            }
+
+            // --- Drawing Functions ---
+
+            /**
+             * Draws a single bubble on the canvas with 3D effects.
+             * @param {object} bubble - The bubble object to draw.
+             */
+            function drawBubble(bubble) {
+                if (!bubble || bubble.status === 'removed') return; // Don't draw removed bubbles
+
+                // Use bubble.x and bubble.y directly if they are defined, otherwise calculate from grid position
+                const x = bubble.x !== undefined ? bubble.x : getBubblePosition(bubble.r, bubble.c).x;
+                const y = bubble.y !== undefined ? bubble.y : (bubble.currentY !== undefined ? bubble.currentY : getBubblePosition(bubble.r, bubble.c).y);
+                const radius = bubble.currentRadius || BUBBLE_RADIUS;
+                const alpha = bubble.currentAlpha || 1;
+
+                ctx.save(); // Save current context state
+                ctx.globalAlpha = alpha; // Apply transparency
+
+                // Create radial gradient for 3D effect
+                const gradient = ctx.createRadialGradient(
+                    x - radius * 0.3, y - radius * 0.3, radius * 0.1, // Inner circle (highlight source)
+                    x, y, radius // Outer circle (full bubble)
+                );
+
+                // Adjust colors for gradient based on base color
+                const baseColor = bubble.color;
+                // Ensure baseColor is a valid hex string before parsing
+                if (!baseColor || baseColor.length !== 7 || baseColor[0] !== '#') {
+                    // Fallback to a default color if baseColor is invalid
+                    console.warn("Invalid base color for bubble:", baseColor);
+                    gradient.addColorStop(0, 'rgb(255, 255, 255)');
+                    gradient.addColorStop(0.7, 'rgb(128, 128, 128)');
+                    gradient.addColorStop(1, 'rgb(0, 0, 0)');
+                } else {
+                    const r = parseInt(baseColor.slice(1, 3), 16);
+                    const g = parseInt(baseColor.slice(3, 5), 16);
+                    const b = parseInt(baseColor.slice(5, 7), 16);
+
+                    // Lighter shade for highlight
+                    gradient.addColorStop(0, `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)})`);
+                    // Base color in the middle
+                    gradient.addColorStop(0.7, baseColor);
+                    // Slightly darker shade for shadow
+                    gradient.addColorStop(1, `rgb(${Math.max(0, r - 50)}, ${Math.max(0, g - 50)}, ${Math.max(0, b - 50)})`);
+                }
+
+
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Add a stronger highlight for specular reflection
+                ctx.beginPath();
+                ctx.arc(x - radius * 0.4, y - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fill();
+
+                // Add a subtle shadow at the bottom
+                ctx.beginPath();
+                ctx.arc(x + radius * 0.2, y + radius * 0.2, radius * 0.2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.fill();
+
+
+                if (bubble.isPowerUp) {
+                    ctx.font = `${radius * 0.8}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = 'white';
+                    let text = '';
+                    switch (bubble.powerUpType) {
+                        case 'thunderbolt': text = '⚡'; break;
+                        case 'rainbow': text = '🌈'; break;
+                        case 'bumpPop': text = '💥'; break;
+                        case 'magicBrush': text = '🖌️'; break;
+                        case 'lifeBubble': text = '❤️'; break;
+                        case 'aimingLine': text = '🎯'; break; // For aiming line power-up
+                        default: text = '⭐'; break;
+                    }
+                    ctx.fillText(text, x, y);
+                }
+                ctx.restore(); // Restore context state
+            }
+
+            /**
+             * Draws the entire grid of bubbles.
+             */
+            function drawBubblesGrid() {
+                for (let r = 0; r < bubbles.length; r++) {
+                    for (let c = 0; c < bubbles[r].length; c++) {
+                        const bubble = bubbles[r][c];
+                        if (bubble && bubble.status !== 'removed') {
+                            drawBubble(bubble);
+                        }
+                    }
+                }
+            }
+
+            /**
+             * Draws the shooter and the aiming line.
+             */
+            function drawShooter() {
+                // Draw the shooter base
+                ctx.beginPath();
+                ctx.arc(shooter.x, shooter.y, BUBBLE_RADIUS * 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#4682B4'; // SteelBlue
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw the aiming line
+                if (currentBubble && !currentBubble.isMoving) { // Ensure currentBubble exists before accessing isMoving
+                    ctx.save(); // Save current canvas state
+                    ctx.translate(shooter.x, shooter.y); // Move origin to shooter
+                    ctx.rotate(shooter.angle - Math.PI / 2); // Rotate to aiming angle
+
+                    ctx.beginPath();
+                    ctx.setLineDash([5, 15]); // Dashed line
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, -canvas.height); // Draw line upwards
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.setLineDash([]); // Reset line dash
+
+                    ctx.restore(); // Restore canvas state
+                }
+
+                // Draw current bubble at shooter
+                if (currentBubble) { // Ensure currentBubble exists before drawing
+                    drawBubble(currentBubble);
+                }
+
+
+                // Draw next bubble preview
+                if (nextBubble) { // Ensure nextBubble exists before drawing
+                    drawBubble(nextBubble);
+                }
+            }
+
+            /**
+             * Updates the score, level, and bubbles remaining displays.
+             */
+            function updateGameInfo() {
+                scoreDisplay.textContent = `Score: ${score}`;
+                levelDisplay.textContent = `Level: ${level}`;
+                bubblesLeftDisplay.textContent = `Bubbles Left: ${bubblesRemaining}`;
+            }
+
+            /**
+             * Main drawing function, clears canvas and draws all game elements.
+             */
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the entire canvas
+                drawBubblesGrid();
+                drawShooter();
+            }
+
+            // --- Game Logic ---
+
+            /**
+             * Handles the shooting of a bubble.
+             */
+            function shootBubble() {
+                if (gameOver || currentBubble.isMoving) return;
+
+                currentBubble.isMoving = true;
+                const speed = 10; // Speed of the shot bubble
+                currentBubble.dx = speed * Math.cos(shooter.angle);
+                currentBubble.dy = speed * Math.sin(shooter.angle);
+            }
+
+            /**
+             * Updates the position of the moving bubble and checks for collisions.
+             */
+            function updateMovingBubble() {
+                if (!currentBubble || !currentBubble.isMoving) return;
+
+                currentBubble.x += currentBubble.dx;
+                currentBubble.y += currentBubble.dy;
+
+                // Wall collision detection
+                if (currentBubble.x + currentBubble.radius > canvas.width || currentBubble.x - currentBubble.radius < 0) {
+                    currentBubble.dx *= -1; // Reverse horizontal direction
+                }
+                if (currentBubble.y - currentBubble.radius < 0) {
+                    // Collision with top wall
+                    currentBubble.isMoving = false;
+                    placeBubbleOnGrid(currentBubble.x, currentBubble.y);
+                    return;
+                }
+
+                // Collision with existing bubbles
+                for (let r = 0; r < bubbles.length; r++) {
+                    for (let c = 0; c < bubbles[r].length; c++) {
+                        const targetBubble = bubbles[r][c];
+                        if (targetBubble && targetBubble.status === 'active') { // Only collide with active bubbles
+                            const targetPos = getBubblePosition(r, c);
+                            if (distance(currentBubble.x, currentBubble.y, targetPos.x, targetPos.y) < BUBBLE_DIAMETER) {
+                                // Collision detected
+                                currentBubble.isMoving = false;
+                                placeBubbleOnGrid(currentBubble.x, currentBubble.y);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            /**
+             * Places the shot bubble onto the grid after collision.
+             * @param {number} x - X coordinate of the bubble.
+             * @param {number} y - Y coordinate of the bubble.
+             */
+            function placeBubbleOnGrid(x, y) {
+                const { row, col } = getGridCoordinates(x, y);
+
+                // Ensure the row exists and column is within bounds
+                if (!bubbles[row]) {
+                    bubbles[row] = [];
+                }
+
+                // Find the nearest empty spot if the calculated spot is occupied
+                let finalRow = row;
+                let finalCol = col;
+                let placed = false;
+
+                // Simple search for nearest empty spot (can be optimized)
+                for (let rOffset = 0; rOffset < 2; rOffset++) {
+                    for (let cOffset = -1; cOffset <= 1; cOffset++) {
+                        const checkRow = row + rOffset;
+                        const checkCol = col + cOffset;
+
+                        if (checkRow >= 0 && checkRow < MAX_ROWS) {
+                            if (!bubbles[checkRow]) bubbles[checkRow] = [];
+                            const checkPos = getBubblePosition(checkRow, checkCol);
+                            // Check if the spot is within a reasonable distance and is empty
+                            if (distance(x, y, checkPos.x, checkPos.y) < BUBBLE_RADIUS * 1.5 && !bubbles[checkRow][checkCol]) {
+                                finalRow = checkRow;
+                                finalCol = checkCol;
+                                placed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (placed) break;
+                }
+
+                if (!placed) {
+                    // Fallback: if no empty spot found, try to place it directly at calculated position
+                    finalRow = row;
+                    finalCol = col;
+                    if (!bubbles[finalRow]) bubbles[finalRow] = [];
+                }
+
+                bubbles[finalRow][finalCol] = {
+                    color: currentBubble.color,
+                    r: finalRow,
+                    c: finalCol,
+                    status: 'active',
+                    animationStartTime: 0,
+                    currentRadius: BUBBLE_RADIUS,
+                    currentAlpha: 1,
+                    initialY: getBubblePosition(finalRow, finalCol).y,
+                    targetY: getBubblePosition(finalRow, finalCol).y,
+                    x: getBubblePosition(finalRow, finalCol).x, // Store actual x,y for consistency
+                    y: getBubblePosition(finalRow, finalCol).y
+                };
+                bubblesRemaining++;
+
+                // Apply power-up effect if it's a power-up bubble
+                if (currentBubble.isPowerUp) {
+                    applyPowerUp(finalRow, finalCol, currentBubble.powerUpType);
+                }
+
+                // Check for matches and clear bubbles
+                const matchedBubbles = findConnectedBubbles(finalRow, finalCol, currentBubble.color, true);
+                if (matchedBubbles.length >= 3) {
+                    popBubbles(matchedBubbles);
+                }
+
+                // Check for floating bubbles
+                dropFloatingBubbles();
+
+                // Check for game over or level complete
+                checkGameOver();
+                // Removed checkLevelComplete() call here as its logic is now merged into checkGameOver()
+
+                // Prepare next bubble
+                createNextBubble();
+                updateGameInfo();
+            }
+
+            /**
+             * Applies the effect of a power-up bubble.
+             * @param {number} r - Row of the power-up bubble.
+             * @param {number} c - Column of the power-up bubble.
+             * @param {string} type - Type of power-up.
+             */
+            function applyPowerUp(r, c, type) {
+                let bubblesToPop = [];
+                switch (type) {
+                    case 'thunderbolt':
+                        // Pop all bubbles in the column
+                        for (let row = 0; row < bubbles.length; row++) {
+                            if (bubbles[row] && bubbles[row][c] && bubbles[row][c].status === 'active') {
+                                bubblesToPop.push({ r: row, c: c });
+                            }
+                        }
+                        break;
+                    case 'rainbow':
+                        // Pop all bubbles of a random color present on the board
+                        const colorsOnBoard = new Set();
+                        for (let row = 0; row < bubbles.length; row++) {
+                            for (let col = 0; col < bubbles[row].length; col++) {
+                                if (bubbles[row][col] && bubbles[row][col].status === 'active') {
+                                    colorsOnBoard.add(bubbles[row][col].color);
+                                }
+                            }
+                        }
+                        const targetColor = Array.from(colorsOnBoard)[Math.floor(Math.random() * colorsOnBoard.size)];
+                        for (let row = 0; row < bubbles.length; row++) {
+                            for (let col = 0; col < bubbles[row].length; col++) {
+                                if (bubbles[row][col] && bubbles[row][col].status === 'active' && bubbles[row][col].color === targetColor) {
+                                    bubblesToPop.push({ r: row, c: col });
+                                }
+                            }
+                        }
+                        break;
+                    case 'bumpPop':
+                        // Remove 2 circles of bubbles around it (3x3 area approx)
+                        const affectedBubbles = new Set();
+                        const addBubbleToSet = (br, bc) => {
+                            if (bubbles[br] && bubbles[br][bc] && bubbles[br][bc].status === 'active') {
+                                affectedBubbles.add(`${br},${bc}`);
+                            }
+                        };
+
+                        addBubbleToSet(r, c); // Include the power-up bubble itself
+                        getNeighbors(r, c).forEach(n => {
+                            addBubbleToSet(n.r, n.c);
+                            getNeighbors(n.r, n.c).forEach(nn => addBubbleToSet(nn.r, nn.c));
+                        });
+
+                        bubblesToPop = Array.from(affectedBubbles).map(coord => {
+                            const [br, bc] = coord.split(',').map(Number);
+                            return { r: br, c: bc };
+                        });
+                        break;
+                    case 'magicBrush':
+                        // Make bubbles of one color disappear instantly
+                        const randomColorToClear = COLORS[Math.floor(Math.random() * COLORS.length)];
+                        for (let row = 0; row < bubbles.length; row++) {
+                            for (let col = 0; col < bubbles[row].length; col++) {
+                                if (bubbles[row][col] && bubbles[row][col].status === 'active' && bubbles[row][col].color === randomColorToClear) {
+                                    bubblesToPop.push({ r: row, c: col });
+                                }
+                            }
+                        }
+                        break;
+                    case 'lifeBubble':
+                        // Increase 5 firing balls (represented as increasing score for simplicity)
+                        score += 50; // Give some score for using it
+                        updateGameInfo();
+                        break;
+                    case 'aimingLine':
+                        // This power-up is typically used before shooting to show a longer aiming line.
+                        // For simplicity, we'll just pop the bubble itself for now, or could make it pop a small area.
+                        bubblesToPop.push({ r: r, c: c });
+                        break;
+                }
+                popBubbles(bubblesToPop);
+            }
+
+            /**
+             * Finds all connected bubbles of the same color using BFS.
+             * @param {number} startR - Starting row.
+             * @param {number} startC - Starting column.
+             * @param {string} color - The color to match.
+             * @param {boolean} includePowerUps - Whether to include power-up bubbles in the match.
+             * @returns {Array<{r: number, c: number}>} List of connected bubbles.
+             */
+            function findConnectedBubbles(startR, startC, color, includePowerUps = false) {
+                const queue = [{ r: startR, c: startC }];
+                const visited = new Set();
+                const connected = [];
+
+                if (!bubbles[startR] || !bubbles[startR][startC] || bubbles[startR][startC].status !== 'active') return [];
+
+                visited.add(`${startR},${startC}`);
+                connected.push({ r: startR, c: startC });
+
+                while (queue.length > 0) {
+                    const { r, c } = queue.shift();
+                    const neighbors = getNeighbors(r, c);
+
+                    for (const neighbor of neighbors) {
+                        const nr = neighbor.r;
+                        const nc = neighbor.c;
+
+                        if (nr >= 0 && nr < bubbles.length && bubbles[nr] && nc >= 0 && nc < bubbles[nr].length && bubbles[nr][nc]) {
+                            const neighborBubble = bubbles[nr][nc];
+                            if (!visited.has(`${nr},${nc}`) && neighborBubble.status === 'active' &&
+                                (neighborBubble.color === color || (includePowerUps && neighborBubble.isPowerUp))) {
+                                visited.add(`${nr},${nc}`);
+                                connected.push({ r: nr, c: nc });
+                                queue.push({ r: nr, c: nc });
+                            }
+                        }
+                    }
+                }
+                return connected;
+            }
+
+            /**
+             * Gets the neighbors of a bubble in a hexagonal grid.
+             * @param {number} r - Row of the bubble.
+             * @param {number} c - Column of the bubble.
+             * @returns {Array<{r: number, c: number}>} List of neighbor coordinates.
+             */
+            function getNeighbors(r, c) {
+                const neighbors = [];
+                const isOddRow = r % 2 === 1;
+
+                // Directions for hexagonal grid
+                // Top-left, Top-right, Left, Right, Bottom-left, Bottom-right
+                const directions = [
+                    { dr: -1, dc: isOddRow ? 0 : -1 }, // Top-left
+                    { dr: -1, dc: isOddRow ? 1 : 0 },  // Top-right
+                    { dr: 0, dc: -1 },                 // Left
+                    { dr: 0, dc: 1 },                  // Right
+                    { dr: 1, dc: isOddRow ? 0 : -1 },  // Bottom-left
+                    { dr: 1, dc: isOddRow ? 1 : 0 }   // Bottom-right
+                ];
+
+                for (const dir of directions) {
+                    const nr = r + dir.dr;
+                    const nc = c + dir.dc;
+                    neighbors.push({ r: nr, c: nc });
+                }
+                return neighbors;
+            }
+
+            /**
+             * Removes bubbles from the grid and updates score, triggering pop animation.
+             * @param {Array<{r: number, c: number}>} bubblesToPop - List of bubbles to remove.
+             */
+            function popBubbles(bubblesToPop) {
+                if (bubblesToPop.length === 0) return;
+
+                playPopSound(); // Play sound when bubbles pop
+
+                for (const { r, c } of bubblesToPop) {
+                    if (bubbles[r] && bubbles[r][c] && bubbles[r][c].status === 'active') {
+                        bubbles[r][c].status = 'popping';
+                        bubbles[r][c].animationStartTime = Date.now();
+                        score += 10; // Increase score
+                        bubblesRemaining--;
+                    }
+                }
+                updateGameInfo();
+            }
+
+            /**
+             * Identifies and removes bubbles that are no longer connected to the top row, triggering drop animation.
+             */
+            function dropFloatingBubbles() {
+                const visited = new Set();
+                const connectedToTop = [];
+
+                // Find all bubbles connected to the top row
+                for (let c = 0; c < bubbles[0].length; c++) {
+                    if (bubbles[0][c] && bubbles[0][c].status === 'active') {
+                        const queue = [{ r: 0, c: c }];
+                        if (!visited.has(`0,${c}`)) {
+                            visited.add(`0,${c}`);
+                            connectedToTop.push({ r: 0, c: c });
+                        }
+
+                        while (queue.length > 0) {
+                            const { r, c } = queue.shift();
+                            const neighbors = getNeighbors(r, c);
+
+                            for (const neighbor of neighbors) {
+                                const nr = neighbor.r;
+                                const nc = neighbor.c;
+
+                                if (nr >= 0 && nr < bubbles.length && bubbles[nr] && nc >= 0 && nc < bubbles[nr].length && bubbles[nr][nc]) {
+                                    if (!visited.has(`${nr},${nc}`) && bubbles[nr][nc].status === 'active') {
+                                        visited.add(`${nr},${nc}`);
+                                        connectedToTop.push({ r: nr, c: nc });
+                                        queue.push({ r: nr, c: nc });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Iterate through all bubbles and mark those not connected to the top for dropping
+                for (let r = 0; r < bubbles.length; r++) {
+                    for (let c = 0; c < bubbles[r].length; c++) {
+                        if (bubbles[r][c] && bubbles[r][c].status === 'active' && !visited.has(`${r},${c}`)) {
+                            bubbles[r][c].status = 'dropping';
+                            bubbles[r][c].animationStartTime = Date.now();
+                            bubbles[r][c].initialY = getBubblePosition(r, c).y;
+                            bubbles[r][c].targetY = canvas.height + BUBBLE_RADIUS * 2; // Drop off screen
+                            score += 20; // Bonus for dropping bubbles
+                            bubblesRemaining--;
+                        }
+                    }
+                }
+                updateGameInfo();
+            }
+
+            /**
+             * Updates the state of popping and dropping bubble animations.
+             */
+            function updateBubbleAnimations() {
+                const currentTime = Date.now();
+                for (let r = 0; r < bubbles.length; r++) {
+                    for (let c = 0; c < bubbles[r].length; c++) {
+                        const bubble = bubbles[r][c];
+                        if (!bubble) continue;
+
+                        if (bubble.status === 'popping') {
+                            const elapsed = currentTime - bubble.animationStartTime;
+                            const progress = Math.min(1, elapsed / POP_ANIMATION_DURATION);
+                            bubble.currentRadius = BUBBLE_RADIUS * (1 - progress);
+                            bubble.currentAlpha = 1 - progress;
+
+                            if (progress >= 1) {
+                                bubbles[r][c] = null; // Fully remove after animation
+                            }
+                        } else if (bubble.status === 'dropping') {
+                            const elapsed = currentTime - bubble.animationStartTime;
+                            const progress = Math.min(1, elapsed / DROP_ANIMATION_DURATION);
+                            bubble.y = bubble.initialY + (bubble.targetY - bubble.initialY) * progress;
+
+                            if (progress >= 1) {
+                                bubbles[r][c] = null; // Fully remove after animation
+                            }
+                        }
+                    }
+                }
+            }
+
+            /**
+             * Checks if the game is over (bubbles reached the bottom or no bubbles left).
+             */
+            function checkGameOver() {
+                // Check if any bubble in the last row is filled
+                for (let r = 0; r < bubbles.length; r++) {
+                    const pos = getBubblePosition(r, 0); // Get y position of this row
+                    if (pos.y + BUBBLE_RADIUS > canvas.height - BUBBLE_RADIUS * 2) { // Check if bubbles are too low
+                        for (let c = 0; c < bubbles[r].length; c++) {
+                            if (bubbles[r][c] && bubbles[r][c].status === 'active') {
+                                gameOver = true;
+                                showMessageBox("Game Over!", `Bubbles reached the bottom! Your score: ${score}`);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // Check if all active bubbles are cleared
+                const allBubblesCleared = bubbles.flat().filter(b => b && b.status === 'active').length;
+                if (allBubblesCleared <= 0 && bubblesRemaining <= 0) { // Check if remaining bubbles count is also 0
+                    if (level < MAX_LEVELS) {
+                        level++;
+                        showMessageBox("Level Complete!", `Proceeding to Level ${level}!`);
+                        // Regenerate bubbles for next level (can make it harder)
+                        setTimeout(() => {
+                            hideMessageBox();
+                            generateBubbles();
+                            createNextBubble();
+                            updateGameInfo();
+                            gameLoop(); // Restart the game loop
+                        }, 2000); // Small delay to show message
+                    } else {
+                        gameOver = true;
+                        showMessageBox("Congratulations!", `You completed all ${MAX_LEVELS} levels! Your final score: ${score}`);
+                    }
+                }
+            }
+
+            /**
+             * Checks if the current level is complete.
+             * This function is now mostly handled by `checkGameOver` for level progression.
+             */
+            function checkLevelComplete() {
+                // The logic for level completion and progression is now integrated into checkGameOver
+                // to ensure all animations finish before advancing or showing final win message.
+            }
+
+            // --- Event Handlers ---
+
+            /**
+             * Handles mouse movement to aim the shooter.
+             * @param {MouseEvent} event - The mouse event.
+             */
+            function handleMouseMove(event) {
+                if (gameOver || (currentBubble && currentBubble.isMoving) || !isGameStarted) return; // Check currentBubble
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+
+                // Calculate angle from shooter to mouse position
+                shooter.angle = Math.atan2(mouseY - shooter.y, mouseX - shooter.x);
+
+                // Restrict angle to only point upwards within a certain cone
+                // Angles from atan2 are in range (-PI, PI].
+                // We want to restrict to angles where y is negative (pointing upwards from shooter).
+                // So, range is from -PI (left horizontal) to 0 (right horizontal).
+                // Aiming cone: from approx -120 degrees (-2*PI/3) to -60 degrees (-PI/3)
+                const minAngle = -2 * Math.PI / 3; // Approx -120 degrees (left-up)
+                const maxAngle = -Math.PI / 3;  // Approx -60 degrees (right-up)
+
+                if (shooter.angle > maxAngle) {
+                    shooter.angle = maxAngle;
+                } else if (shooter.angle < minAngle) {
+                    shooter.angle = minAngle;
+                }
+            }
+
+            /**
+             * Handles mouse click to shoot the bubble.
+             */
+            function handleMouseClick() {
+                if (gameOver || (currentBubble && currentBubble.isMoving) || !isGameStarted) return; // Check currentBubble
+                shootBubble();
+            }
+
+            /**
+             * Handles touch start to begin aiming or shoot.
+             * @param {TouchEvent} event - The touch event.
+             */
+            function handleTouchStart(event) {
+                if (gameOver || (currentBubble && currentBubble.isMoving) || !isGameStarted) return; // Check currentBubble
+                event.preventDefault(); // Prevent scrolling
+                isDragging = true;
+                const touch = event.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+
+                // Calculate angle for initial aim
+                shooter.angle = Math.atan2(touchY - shooter.y, touchX - shooter.x);
+                // Apply the same angle restriction as mouse move
+                const minAngle = -2 * Math.PI / 3;
+                const maxAngle = -Math.PI / 3;
+                if (shooter.angle > maxAngle) {
+                    shooter.angle = maxAngle;
+                } else if (shooter.angle < minAngle) {
+                    shooter.angle = minAngle;
+                }
+            }
+
+            /**
+             * Handles touch movement to aim the shooter.
+             * @param {TouchEvent} event - The touch event.
+             */
+            function handleTouchMove(event) {
+                if (gameOver || (currentBubble && currentBubble.isMoving) || !isDragging || !isGameStarted) return; // Check currentBubble
+                event.preventDefault(); // Prevent scrolling
+                const touch = event.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+
+                // Calculate angle from shooter to touch position
+                shooter.angle = Math.atan2(touchY - shooter.y, touchX - shooter.x);
+                // Apply the same angle restriction as mouse move
+                const minAngle = -2 * Math.PI / 3;
+                const maxAngle = -Math.PI / 3;
+                if (shooter.angle > maxAngle) {
+                    shooter.angle = maxAngle;
+                } else if (shooter.angle < minAngle) {
+                    shooter.angle = minAngle;
+                }
+            }
+
+            /**
+             * Handles touch end to shoot the bubble.
+             */
+            function handleTouchEnd() {
+                if (gameOver || (currentBubble && currentBubble.isMoving) || !isGameStarted) return; // Check currentBubble
+                if (isDragging) {
+                    shootBubble();
+                    isDragging = false;
+                }
+            }
+
+            /**
+             * Toggles sound on/off.
+             */
+            function handleSoundToggle() {
+                soundEnabled = !soundEnabled;
+                soundIcon.textContent = soundEnabled ? '🔊' : '�';
+                toggleBackgroundMusic();
+            }
+
+            // --- Main Game Loop ---
+
+            /**
+             * The main game animation loop.
+             */
+            function gameLoop() {
+                if (gameOver) {
+                    cancelAnimationFrame(animationFrameId);
+                    return;
+                }
+
+                updateMovingBubble();
+                updateBubbleAnimations(); // Update popping and dropping bubbles
+                draw();
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            // --- Event Listeners ---
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('click', handleMouseClick);
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd);
+            restartButton.addEventListener('click', initGame);
+            playButton.addEventListener('click', startGame); // New: Start game from home screen
+            soundToggle.addEventListener('click', handleSoundToggle); // New: Sound toggle
+            window.addEventListener('resize', resizeCanvas); // Adjust canvas on window resize
+
+            // Initial setup: Hide game container, show start screen
+            gameContainer.style.display = 'none';
+            startScreen.style.display = 'flex';
+
+            // Initial resize to set up canvas dimensions and shooter position.
+            // This must happen before createNextBubble is called, but should not draw if elements are not ready.
+            resizeCanvas();
+
+            // Initialize current and next bubbles *after* canvas and shooter positions are set by resizeCanvas
+            // This ensures their x,y properties are valid for the first draw calls.
+            createNextBubble();
+        };
+    </script>
+</body>
+</html>
